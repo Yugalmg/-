@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数学符号编辑器 · LaTeX 公式排版</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --fg:#1b2333; --muted:#6b7280;
+    --line:#e4e8f0; --accent:#3b5bdb; --accent-soft:#eaeeff;
+    --ok:#0f9960; --err:#d64545; --hover:#f5f7ff; --code:#f4f6fb;
+  }
+  html[data-theme="dark"]{
+    --bg:#101319; --panel:#171b23; --fg:#e6eaf2; --muted:#95a0b4;
+    --line:#272d39; --accent:#7f9cff; --accent-soft:#1e2740;
+    --ok:#43c98a; --err:#ff7b7b; --hover:#1d2230; --code:#1b2029;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  /* 屏幕阅读器用的 MathML 副本不要出现在画面上 */
+  mjx-assistive-mml{
+    position:absolute !important;width:1px !important;height:1px !important;
+    overflow:hidden !important;clip:rect(1px,1px,1px,1px) !important;
+    padding:0 !important;border:0 !important;opacity:0 !important;
+  }
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.6 system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;cursor:pointer}
+  input,select,textarea{font:inherit;color:inherit}
+
+  /* ---------- 顶栏 ---------- */
+  header{
+    height:54px;display:flex;align-items:center;gap:12px;padding:0 16px;
+    background:var(--panel);border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.3px}
+  header h1 span{font-weight:400;color:var(--muted);font-size:13px;margin-left:8px}
+  .spacer{flex:1}
+  .hbtn{
+    border:1px solid var(--line);background:transparent;border-radius:8px;
+    padding:6px 12px;font-size:13px;
+  }
+  .hbtn:hover{background:var(--hover);border-color:var(--accent)}
+
+  /* ---------- 三栏布局 ---------- */
+  .wrap{
+    display:grid;grid-template-columns:300px minmax(360px,1fr) 320px;
+    gap:10px;padding:10px;height:calc(100vh - 54px);
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  }
+  .panel-head{
+    padding:10px 12px;border-bottom:1px solid var(--line);flex:none;
+  }
+  .panel-body{overflow:auto;padding:10px 12px;flex:1;min-height:0}
+  .muted{color:var(--muted);font-size:13px;margin:6px 0}
+
+  input.search{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--code);outline:none;
+  }
+  input.search:focus{border-color:var(--accent)}
+  .tip{font-size:12px;color:var(--muted);min-height:16px;margin-top:6px}
+  #chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+  .chip{
+    border:1px solid var(--line);background:transparent;border-radius:20px;
+    padding:2px 9px;font-size:12px;color:var(--muted);
+  }
+  .chip:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+
+  /* ---------- 符号按钮 ---------- */
+  .group{margin-bottom:14px}
+  .group h3{
+    font-size:12.5px;margin:0 0 6px;color:var(--muted);font-weight:600;
+    position:sticky;top:-10px;background:var(--panel);padding:4px 0;z-index:1;
+  }
+  .symbox{display:flex;flex-wrap:wrap;gap:4px}
+  .sym{
+    min-width:36px;height:34px;padding:0 7px;
+    border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    font-family:"Cambria Math","Latin Modern Math","Times New Roman",serif;
+    font-size:17px;line-height:1;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .sym:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .sym.wide{font-family:inherit;font-size:11.5px;color:var(--muted);height:30px}
+
+  /* ---------- 编辑器 ---------- */
+  .edbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  textarea#input{
+    width:100%;min-height:104px;padding:12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--code);outline:none;resize:vertical;
+    font-family:"Cascadia Mono",Consolas,"Courier New",monospace;font-size:14px;line-height:1.7;
+  }
+  textarea#input:focus{border-color:var(--accent);background:var(--panel)}
+  .btn{
+    border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 11px;font-size:13px;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(1.08);background:var(--accent)}
+  .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+  .field{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)}
+  select{
+    border:1px solid var(--line);background:var(--panel);border-radius:7px;
+    padding:5px 6px;font-size:12.5px;
+  }
+  .preview{
+    margin-top:10px;padding:18px 14px;border:1px dashed var(--line);border-radius:10px;
+    background:var(--panel);overflow:auto;text-align:center;min-height:96px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .preview.empty{
+    border-style:dashed;color:var(--muted);font-size:13px;display:block;text-align:left;
+    padding:16px;word-break:break-all;
+  }
+  .preview mjx-container{max-width:100%}
+  #err{
+    margin-top:8px;padding:8px 10px;border-radius:8px;font-size:13px;
+    background:color-mix(in srgb,var(--err) 12%,transparent);color:var(--err);
+    border:1px solid color-mix(in srgb,var(--err) 35%,transparent);
+  }
+  .hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+  kbd{
+    background:var(--code);border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:5px;padding:0 5px;font-size:11.5px;font-family:inherit;
+  }
+
+  /* ---------- 右侧面板 ---------- */
+  .tabs{display:flex;gap:4px;padding:8px 8px 0}
+  .tab{
+    flex:1;border:1px solid transparent;background:transparent;border-radius:8px;
+    padding:6px 4px;font-size:13px;color:var(--muted);
+  }
+  .tab:hover{background:var(--hover)}
+  .tab.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  #side h3{font-size:12.5px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+  #side h3:first-child{margin-top:0}
+  .card{
+    border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin-bottom:7px;
+    cursor:pointer;background:var(--panel);
+  }
+  .card:hover{border-color:var(--accent);background:var(--hover)}
+  .card-head{display:flex;align-items:center;gap:6px}
+  .card-name{font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .del{
+    border:none;background:transparent;color:var(--muted);font-size:12px;
+    border-radius:5px;padding:0 4px;flex:none;
+  }
+  .del:hover{color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}
+  .card-body{overflow:auto;font-size:13px;padding:2px 0 0;max-height:120px}
+  .card-body mjx-container{max-width:100%}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* ---------- 提示与弹窗 ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:34px;transform:translate(-50%,20px);
+    background:#1f2937;color:#fff;padding:9px 16px;border-radius:10px;
+    font-size:13.5px;opacity:0;pointer-events:none;transition:.22s;z-index:60;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.ok{background:#0f7a4d}
+  #toast.err{background:#b03030}
+  .modal{
+    position:fixed;inset:0;background:rgba(12,16,24,.55);z-index:80;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-inner{
+    background:var(--panel);border-radius:14px;max-width:720px;width:100%;
+    max-height:82vh;overflow:auto;padding:22px 26px;border:1px solid var(--line);
+  }
+  .modal-inner h2{margin:0 0 6px;font-size:18px}
+  .modal-inner h4{margin:18px 0 6px;font-size:14px;color:var(--accent)}
+  .modal-inner p,.modal-inner li{font-size:13.5px;color:var(--fg)}
+  .modal-inner ul{padding-left:20px;margin:6px 0}
+  .modal-inner code{
+    background:var(--code);border:1px solid var(--line);border-radius:5px;
+    padding:1px 5px;font-size:12.5px;
+  }
+  @media (max-width:1180px){
+    .wrap{grid-template-columns:1fr;height:auto}
+    .panel{max-height:none}
+    #palette .panel-body{max-height:320px}
+    #side .panel-body{max-height:420px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>∑ 数学符号编辑器<span>点符号 → 自动排版 → 复制到 Word / PPT / 笔记</span></h1>
+  <div class="spacer"></div>
+  <button class="hbtn" id="btnTheme" title="切换深色 / 浅色">🌓 主题</button>
+  <button class="hbtn" id="btnHelp" title="使用帮助">? 帮助</button>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 左：符号面板 ============ -->
+  <section class="panel" id="palette">
+    <div class="panel-head">
+      <input class="search" id="search" type="search" placeholder="搜索符号：积分 / int / 属于 / sigma …">
+      <div class="tip" id="paletteTip"></div>
+      <div id="chips"></div>
+    </div>
+    <div class="panel-body" id="paletteBody"></div>
+  </section>
+
+  <!-- ============ 中：编辑与预览 ============ -->
+  <section class="panel" id="editor">
+    <div class="panel-body">
+      <div class="edbar">
+        <span class="field">
+          点击符号时：
+          <select id="insertMode">
+            <option value="cursor">插入到光标处</option>
+            <option value="replace">清空后插入</option>
+          </select>
+        </span>
+        <span class="sep"></span>
+        <button class="btn" id="btnSmart" title="把 ×、≤、sqrt(x)、1/2、alpha 等写法自动改成规范 LaTeX">✨ 智能转换</button>
+        <button class="btn" id="btnUndo" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+        <button class="btn" id="btnClear" title="清空输入">✕ 清空</button>
+        <button class="btn" id="btnFav" title="把当前公式存进「收藏」">☆ 收藏当前公式</button>
+      </div>
+
+      <textarea id="input" spellcheck="false"
+        placeholder="在这里输入 LaTeX，例如：  \lim_{x \to 0}\frac{\sin x}{x}=1   或  \int_0^1 x^2\,\mathrm{d}x"></textarea>
+
+      <div class="edbar" style="margin-top:10px">
+        <button class="btn primary" id="btnCopyLatex" title="Ctrl+Enter">复制 LaTeX</button>
+        <button class="btn" id="btnCopyInline" title="复制成 $…$，适合 Markdown / Typora / Obsidian">复制 $…$</button>
+        <button class="btn" id="btnCopyBlock" title="复制成 $$…$$">复制 $$…$$</button>
+        <button class="btn" id="btnCopyMathML" title="MathML 格式，较新版本的 Word / WPS 会识别成可编辑公式">复制 MathML</button>
+        <button class="btn" id="btnCopyImg" title="把公式作为图片放进剪贴板">复制图片</button>
+        <span class="sep"></span>
+        <button class="btn" id="btnSvg">导出 SVG</button>
+        <span class="field">
+          <button class="btn" id="btnPng">导出 PNG</button>
+          <select id="pngScale" title="PNG 分辨率">
+            <option value="2">2×</option>
+            <option value="4" selected>4×</option>
+            <option value="8">8×</option>
+          </select>
+        </span>
+        <span class="sep"></span>
+        <span class="field">预览字号
+          <select id="zoom">
+            <option value="100">100%</option>
+            <option value="130">130%</option>
+            <option value="160">160%</option>
+            <option value="200">200%</option>
+            <option value="260">260%</option>
+          </select>
+        </span>
+      </div>
+
+      <div class="preview empty" id="preview"></div>
+      <div id="err" hidden></div>
+      <p class="hint">
+        <kbd>Tab</kbd> 在模板占位符之间跳转 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 立即渲染并复制 LaTeX ·
+        <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 · 选中一段文字后点模板，会自动把选中内容填进模板
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 右：公式库 / 收藏 / 历史 ============ -->
+  <section class="panel" id="side">
+    <div class="tabs">
+      <button class="tab active" data-tab="lib">公式库</button>
+      <button class="tab" data-tab="fav">收藏</button>
+      <button class="tab" data-tab="hist">历史</button>
+    </div>
+    <div class="panel-body">
+      <div id="panel-lib">
+        <input class="search" id="libSearch" type="search" placeholder="搜索公式：泰勒 / 中值定理 / 格林 …">
+        <div class="row" style="margin-top:8px">
+          <span class="muted">点击载入编辑器，Shift+点击插入到光标处</span>
+        </div>
+        <div id="libList"></div>
+      </div>
+
+      <div id="panel-fav" hidden>
+        <div class="row">
+          <button class="btn" id="btnExportFav">导出收藏 (JSON)</button>
+          <button class="btn" id="btnImportFav">导入收藏</button>
+          <input type="file" id="favFile" accept=".json,application/json" hidden>
+        </div>
+        <div id="favList"></div>
+      </div>
+
+      <div id="panel-hist" hidden>
+        <p class="muted">复制或导出过的公式会自动记录在这里（最多 40 条）。</p>
+        <div id="histList"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-inner">
+    <h2>使用帮助</h2>
+    <p>这个工具解决三件事：<b>数学符号难打</b>、<b>公式排版不整齐</b>、<b>贴到 Word/PPT 里变形</b>。</p>
+
+    <h4>① 找符号</h4>
+    <p>左侧按分类排好了希腊字母、运算、关系、箭头、集合、微积分、矩阵、结构模板等。
+      记不住命令就直接在搜索框输入中文或英文，比如「积分」「偏导」「属于」「sigma」。</p>
+
+    <h4>② 写公式</h4>
+    <ul>
+      <li>点一个<b>结构模板</b>（分数、根号、矩阵、分段函数…）会自动插入骨架，光标落在第一个空格里，按 <kbd>Tab</kbd> 跳到下一个空格。</li>
+      <li>先选中一段内容再点模板（如 <code>\sqrt</code>、<code>\frac</code>），选中内容会直接填进模板。</li>
+      <li><b>✨ 智能转换</b>：随手写的 <code>lim x-&gt;0 sinx/x</code>、<code>sqrt(x^2+1)</code>、<code>1/2</code>、<code>×</code>、<code>α</code> 等会被自动改写成规范 LaTeX。</li>
+      <li>右边「公式库」内置了高等数学常用公式（极限定义、泰勒公式、重要极限、中值定理、格林公式…），点击即可载入再改。</li>
+    </ul>
+
+    <h4>③ 复制到别的地方</h4>
+    <ul>
+      <li><b>复制 LaTeX</b>：给 Typora / Obsidian / Markdown / Overleaf / 其它 LaTeX 环境用。</li>
+      <li><b>复制 $…$ / $$…$$</b>：直接粘进 Markdown 笔记。</li>
+      <li><b>复制 MathML</b>：粘进较新版本的 Word、WPS，会识别成可以继续编辑的公式。</li>
+      <li><b>复制图片 / 导出 PNG、SVG</b>：粘进 PPT、Word、微信、打印讲义都不变形；PNG 可选 2×/4×/8× 分辨率。</li>
+    </ul>
+
+    <h4>快捷键</h4>
+    <ul>
+      <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd>　立即渲染并复制 LaTeX</li>
+      <li><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd>　在模板的空格之间前后跳</li>
+      <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>　撤销 / 重做</li>
+      <li><kbd>Esc</kbd>　关闭本窗口</li>
+    </ul>
+
+    <h4>离线说明</h4>
+    <p>排版引擎（MathJax）已经放在同目录的 <code>lib/tex-mml-svg.js</code> 里，<b>完全离线可用</b>，
+      不需要联网。只要别删掉 <code>lib</code> 文件夹就行。</p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn primary" id="modalClose">知道了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.MathJax = {
+    startup: { typeset: false },
+    svg: { fontCache: 'local', scale: 1 },
+    tex: { packages: { '[+]': ['ams', 'boldsymbol', 'cancel', 'color', 'enclose'] } },
+    options: { enableMenu: false, enableAssistiveMml: false }
+  };
+</script>
+<script src="lib/tex-mml-svg.js"></script>
+<script src="symbols.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
